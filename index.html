@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ka">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RS.ge AI აგენტი</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .chat-container {
+        height: calc(100vh - 200px);
+      }
+      body {
+        background-color: #f3f4f6;
+      }
+
+      #chat-box::-webkit-scrollbar {
+        width: 6px;
+      }
+      #chat-box::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body class="font-sans">
+    <nav class="bg-blue-900 text-white p-4 shadow-lg">
+      <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-xl font-bold italic">RS.ge AI Assistant</h1>
+        <div class="flex items-center gap-2">
+          <span class="text-sm opacity-75">Legal RAG System</span>
+          <i class="fas fa-scale-balanced text-2xl"></i>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mx-auto max-w-4xl mt-6 p-4">
+      <div
+        id="chat-box"
+        class="chat-container overflow-y-auto bg-white rounded-xl shadow-inner p-6 space-y-4 mb-4 border border-gray-200"
+      >
+        <div class="flex justify-start">
+          <div
+            class="bg-blue-100 text-blue-900 p-3 rounded-lg max-w-[80%] shadow-sm"
+          >
+            გამარჯობა! მე ვარ საგადასახადო AI ასისტენტი. დამისვით კითხვა
+            კონკრეტულ საქმეზე ან მუხლზე.
+          </div>
+        </div>
+      </div>
+
+      <div class="relative">
+        <input
+          type="text"
+          id="user-input"
+          class="w-full p-4 pr-16 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-md transition-all"
+          placeholder="ჩაწერეთ კითხვა"
+        />
+        <button
+          onclick="askAI()"
+          id="send-btn"
+          class="absolute right-2 top-2 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full transition-all shadow-lg active:scale-95"
+        >
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+      <p class="text-center text-xs text-gray-500 mt-3">
+        პასუხი ეყრდნობა მხოლოდ შემოსავლების სამსახურის დავების ბაზას.
+      </p>
+    </div>
+
+    <script>
+      const chatBox = document.getElementById("chat-box");
+      const userInput = document.getElementById("user-input");
+      const sendBtn = document.getElementById("send-btn");
+
+      async function askAI() {
+        const question = userInput.value.trim();
+        if (!question) return;
+
+        // მესიჯის გამოჩენა
+        appendMessage("user", question);
+        userInput.value = "";
+
+        // Loading
+        const loadingId = appendMessage(
+          "bot",
+          '<i class="fas fa-spinner fa-spin mr-2"></i> AI ამუშავებს მონაცემებს...'
+        );
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+          const response = await fetch("http://127.0.0.1:8000/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: question }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`სერვერმა დააბრუნა შეცდომა: ${response.status}`);
+          }
+
+          const data = await response.json();
+          const botMsgDiv = document.getElementById(loadingId);
+
+          // პასუხის ფორმატირება
+          let formattedAnswer = data.answer.replace(/\n/g, "<br>");
+
+          let htmlContent = `<div class="prose prose-sm"><p>${formattedAnswer}</p></div>`;
+
+          // წყაროების გამოჩენა
+          if (
+            data.sources &&
+            Array.isArray(data.sources) &&
+            data.sources.length > 0
+          ) {
+            htmlContent += `
+              <div class="text-[10px] uppercase tracking-wider font-bold text-blue-800 opacity-60 border-t border-blue-200 mt-3 pt-2">
+                წყაროები: ${data.sources.join(", ")}
+              </div>
+            `;
+          }
+
+          botMsgDiv.innerHTML = htmlContent;
+        } catch (error) {
+          console.error("Fetch error:", error);
+          const errorMsg =
+            error.name === "AbortError"
+              ? "შეცდომა: სერვერმა პასუხი დროულად ვერ დააბრუნა (Timeout)."
+              : "შეცდომა: კავშირი ვერ დამყარდა. დარწმუნდით, რომ main.py გაშვებულია.";
+
+          document.getElementById(
+            loadingId
+          ).innerHTML = `<span class="text-red-500"><i class="fas fa-circle-exclamation mr-2"></i>${errorMsg}</span>`;
+        }
+
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      function appendMessage(role, text) {
+        const id = "msg-" + Math.random().toString(36).substr(2, 9);
+        const wrapper = document.createElement("div");
+        wrapper.className = `flex ${
+          role === "user" ? "justify-end" : "justify-start animate-fade-in"
+        }`;
+
+        const div = document.createElement("div");
+        div.id = id;
+        div.className =
+          role === "user"
+            ? "bg-blue-600 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%] shadow-md mb-2"
+            : "bg-white text-gray-800 p-4 rounded-2xl rounded-tl-none max-w-[85%] shadow-sm border border-gray-100 mb-2";
+
+        div.innerHTML = text;
+        wrapper.appendChild(div);
+        chatBox.appendChild(wrapper);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        return id;
+      }
+
+      userInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") askAI();
+      });
+    </script>
+  </body>
+</html>
