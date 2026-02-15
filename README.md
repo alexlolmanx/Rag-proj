@@ -4,6 +4,6 @@ AI infohub.rs.ge აგენტი რომელიც იყენებს 
 
 შექმენით .env ფაილი სადაც უნდა ჩასვათ - GOOGLE_API_KEY"თქვენი API Key"
 
-ფოლდერი data ატვირთულია ამიტომ არ არის საჭიროო crawler.py და scraper.py გაშვება
+გაუშვით crawler.py შემდეგ scraper.py რაც ამოიღებს მონაცემს საიტიდან
 
-გასაშვები - ingest.py შემდეგ main.py და გახსენით index.html ჩატის სანახავად
+გაუშვით ingest.py შემდეგ main.py და გახსენით index.html ჩატის სანახავად
